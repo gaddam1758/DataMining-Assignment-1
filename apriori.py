@@ -85,8 +85,10 @@ def get_support_hashing(transactions, itemsets, k):
 
     support_tree = hash_tree(itemsets)
     
+    count = 0
     for id, t in enumerate(transactions):
         for subset in combinations(t, k) :
+            subset = tuple(sorted(subset, key = lambda v : int(v)))
             if support_tree.exists(subset, support_tree.root):
               support[subset]+=1
     return support
@@ -116,7 +118,7 @@ def get_frequent_itemsets(transactions, itemsets,  min_support_count, k):
 
 def get_apriori_candidate_itemsets(F_k_1, k):
     
-    C_k = []
+    C_k = set()
     
     ## Candidate generation step using F[k-1]*F[k-1]
     for itemset_1 in F_k_1:
@@ -127,22 +129,23 @@ def get_apriori_candidate_itemsets(F_k_1, k):
             difference_1 = list(itemset_1.difference(itemset_2))
             difference_2 = list(itemset_2.difference(itemset_1))
             
-            if((len(difference_1)+len(difference_2))==2 and (int(difference_2[0])-int(difference_1[0]))>0):
+            if((len(difference_1)==1 and len(difference_2))==1) :
+               #and (int(difference_2[0])-int(difference_1[0]))>0):
                 candidate = itemset_1.union(itemset_2)
                 candidate = sorted(candidate, key = lambda v : int(v))
                 #print(candidate)
-                C_k.append(tuple(candidate))
+                C_k.add(tuple(candidate))
     
     ##Pruning step
     ## list of candidates to prune
-    r_k = []
+    r_k = set()
     
     #print(F_k_1)
     
     for candidate in C_k:
         for subset in combinations(candidate,k-1):
             if not subset in F_k_1:
-                r_k.append(candidate)
+                r_k.add(candidate)
                 break
     
     
@@ -150,7 +153,7 @@ def get_apriori_candidate_itemsets(F_k_1, k):
         #print(candidate)
         C_k.remove(candidate)
         
-    return C_k
+    return list(C_k)
         
         
     
@@ -182,6 +185,7 @@ def frequent_itemsets_from_tranasactions(
     ##generating F1
      
     F_1 = get_frequent_itemsets(transactions, C[1], min_support_count, 1)
+    print(len(F_1), F_1)
     F.append(F_1)
     ##STEP-2 loop
     
@@ -190,8 +194,8 @@ def frequent_itemsets_from_tranasactions(
         print("generating",k ,"-itemsets")
         C[k] = get_apriori_candidate_itemsets(F[k-1], k)
         F_k = get_frequent_itemsets(transactions,C[k], min_support_count, k)
-        print(F_k)
         F.append(F_k)
         k+=1
+    return F
         
     
