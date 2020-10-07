@@ -1,52 +1,90 @@
-# -*- coding: utf-8 -*-
-"""
-Created on Sun Sep 27 10:36:20 2020
+from apriori import apriori
 
-@author: ramak
-"""
+from eclat import eclat
 
+from fpGrowth import fp
 
+import matplotlib.pyplot as plt
 
-from apriori import frequent_itemsets_from_tranasactions
+import os
 
-from fpGrowth import create_FPTree, get_frequent
-from collections import defaultdict
+import time 
 
-f = open("T10I4D100K.dat", "r")
+import numpy as np
+import matplotlib.pyplot as plt
+from memory_profiler import memory_usage
 
-transactions =[]
-
-
-items = set()
+Datasets = os.listdir('data')
 
 
-while True:
-    line = f.readline()
+times = []
+
+
+
+support = 0.1
+times = []
+scale =100
+categorical = False
+for file in Datasets:
+    t = []
+    if file == 'groceries.csv':
+      categorical = True
+    else:
+         categorical = False
+    print("running on dataset", file)
     
-    if not line:
-        break
-    transactions.append(tuple(sorted(line.split(), key = lambda v: int(v))))
+    t1 = time.time()
     
-    for item in line.split():
-        items.add(item)
+    print("apriori")
     
-
-items = sorted(items, key = lambda v : int(v))
-
-#frequent_itemsets_from_tranasactions(items, transactions, 0.05)
-
-t = defaultdict(lambda : 0)
-
-for k in transactions:
-    t[k] += 1
+    apriori("data/"+file,support, categorical)
     
+    t.append(time.time()-t1)
+    
+    t1 = time.time()
+    
+    print("eclat")
+    
+    eclat("data/"+file,support, categorical)
+    
+    t.append(time.time()-t1)
+    
+    t1 = time.time()
+    print("fp")
+    
+    fp("data/"+file, support, categorical)
+    
+    t.append(time.time()-t1)
+    times.append(t)
 
-tree, Table = create_FPTree(t,5000)
-print("FP-tree Created")
-
-frequent_itemset = []
-get_frequent(tree,Table, 5000, set([]), frequent_itemset)
-
-print(frequent_itemset)
+##dataset profile
 
 
+def cate_plot(data, labels):
+    X = np.arange(len(data[0]))
+    fig = plt.figure()
+    ax = fig.add_axes([0,0,1,1])
+    ax.bar(X + 0.00, data[0], color = 'b', width = 0.25)
+    ax.bar(X + 0.25, data[1], color = 'g', width = 0.25)
+    ax.bar(X + 0.50, data[2], color = 'r', width = 0.25)
+    ax.set_ylabel('log10(time)')
+    ax.set_title('Time taken by algirithm on various datasets')
+    ax.set_xticks(X)
+    ax.set_xticklabels(labels, rotation = 45)
+    ax.legend(labels=['apriori', 'eclat', 'fp'])
+
+import numpy as np
+import math
+
+
+
+
+X = Datasets
+
+print(times)
+t = np.log10(np.array(times)*scale).T.tolist()
+print(t)
+
+cate_plot(t, Datasets)
+plt.savefig('figures/'+'time_dataset'+str(support)+".png",bbox_inches='tight')
+plt.show()

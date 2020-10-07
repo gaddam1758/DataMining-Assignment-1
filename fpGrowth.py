@@ -7,6 +7,7 @@ Created on Sun Oct  4 09:18:54 2020
 
 from collections import defaultdict
 from tqdm import tqdm
+from grocery_dat_cleaning import cate_to_num
 
 class Node:
     
@@ -83,7 +84,7 @@ def create_FPTree(transactions, min_support_count):
     transactions = sort_by_frequency(transactions, items_list)
     
     root = Node("root",None)
-    for t in tqdm(transactions):
+    for t in transactions:
         if len(t)>0:
             insert(t,root, Table, transactions[t])
     
@@ -136,16 +137,84 @@ def get_frequent(FPTree, HeaderTable, minSupport, prefix, frequent_itemset):
     bigL = [v[0] for v in sorted(HeaderTable.items(),key=lambda p: p[1][0])]
     for basePat in bigL:
         new_frequentset = prefix.copy()
+        
         new_frequentset.add(basePat)
-        #add frequent itemset to final list of frequent itemsets
+
+
         frequent_itemset.append((new_frequentset))
-        #get all conditional pattern bases for item or itemsets
+
+
         Conditional_pattern_bases = find_prefix_path(basePat, HeaderTable[basePat][1])
-        #call FP Tree construction to make conditional FP Tree
+
         Conditional_FPTree, Conditional_header = _create_FPTree(Conditional_pattern_bases,minSupport)
         
         if Conditional_header != None:
             get_frequent(Conditional_FPTree, Conditional_header, minSupport, new_frequentset, frequent_itemset)
             
 
+def fp(filename, support, categorical = False):
+    if not categorical:
+        f = open(filename, "r")
+    
+        transactions =[]
+        
+        
+        items = set()
+        
+        
+        while True:
+            line = f.readline()
+            
+            if not line:
+                break
+            transactions.append(tuple(sorted(line.split(), key = lambda v: int(v))))
+            
+            for item in line.split():
+                items.add(item)
+            
+        
+        items = sorted(items, key = lambda v : int(v))
+        
+        
+        t = defaultdict(lambda : 0)
+        
+        for k in transactions:
+            t[k] += 1
+            
+        support_count = len(transactions)*support
+        tree, Table = create_FPTree(t, support_count)
+        print("FP-tree Created")
+        
+        frequent_itemset = []
+        get_frequent(tree,Table, support_count, set([]), frequent_itemset)
+    
+    else:
+        
+        transactions, items = cate_to_num(filename)
+        t = defaultdict(lambda : 0)
+        for k in transactions:
+            t[tuple(k)] += 1
+            
+        support_count = len(transactions)*support
+        tree, Table = create_FPTree(t, support_count)
+        print("FP-tree Created")
+        
+        frequent_itemset = []
+        get_frequent(tree,Table, support_count, set([]), frequent_itemset)
+        itemsets = frequent_itemset
+        ##convert to catergorical
+        inv_map = {v: k for k, v in items.items()}
+        n_itemsets = []
+        
+
+        for itemset in itemsets:
+            k = []
+            
+            for item in itemset:
+  
+                k.append(inv_map[item])
+            n_itemsets.append(k)   
+        
+        return n_itemsets
+    
     

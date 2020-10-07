@@ -1,7 +1,6 @@
 # -*- coding: utf-8 -*-
 """
 Created on Mon Sep 28 11:48:15 2020
-
 @author: ramak
 """
 import collections
@@ -9,8 +8,8 @@ import typing
 from dataclasses import field, dataclass
 from collections import defaultdict 
 from itertools import chain, combinations
-         
-
+from tqdm import tqdm         
+from grocery_dat_cleaning import cate_to_num
 
 class hash_node:
     
@@ -86,19 +85,30 @@ def get_support_hashing(transactions, itemsets, k):
     support_tree = hash_tree(itemsets)
     
     count = 0
-    for id, t in enumerate(transactions):
+    for  t in tqdm(transactions):
         for subset in combinations(t, k) :
             subset = tuple(sorted(subset, key = lambda v : int(v)))
             if support_tree.exists(subset, support_tree.root):
               support[subset]+=1
     return support
 
-            
+def get_support_hashing_trans(transactions, itemsets, k):
+    support  = defaultdict(lambda: 0)
+    
+    
+    for t in tqdm(transactions):
+        subsets = combinations(t, k)
+        tree = hash_tree(subsets)
+        for item in itemsets :
+            if tree.exists(item, tree.root):
+                support[item]+=1
+    return support
+
 def get_support(transactions, itemsets):
     
     support  = defaultdict(lambda: 0)
     count = 0
-    for id, t in enumerate(transactions):
+    for id, t in tqdm(enumerate(transactions)):
         for itemset in itemsets:
             if t.issuperset(itemset):
                 support[itemset]+=1
@@ -185,7 +195,6 @@ def frequent_itemsets_from_tranasactions(
     ##generating F1
      
     F_1 = get_frequent_itemsets(transactions, C[1], min_support_count, 1)
-    print(len(F_1), F_1)
     F.append(F_1)
     ##STEP-2 loop
     
@@ -196,6 +205,54 @@ def frequent_itemsets_from_tranasactions(
         F_k = get_frequent_itemsets(transactions,C[k], min_support_count, k)
         F.append(F_k)
         k+=1
-    return F
-        
     
+    total = []
+    for f in F[1:]:
+        total =total+list(f)
+    return total
+
+def apriori(filename, support, categorical = False):
+     if not categorical:
+        f = open(filename, "r")
+    
+        transactions =[]
+    
+    
+        items = set()
+
+   
+        while True:
+            line = f.readline()
+        
+            if not line:
+                break
+            transactions.append(tuple(sorted(line.split(), key = lambda v: int(v))))
+        
+            for item in line.split():
+                items.add(item)
+    
+
+        items = sorted(items, key = lambda v : int(v))
+        
+        return frequent_itemsets_from_tranasactions(items, transactions, support)   
+     else:
+        
+        transactions, items = cate_to_num(filename)
+        itemsets = frequent_itemsets_from_tranasactions(list(items.values()), transactions, support)
+        
+
+        ##convert to catergorical
+        inv_map = {v: k for k, v in items.items()}
+        n_itemsets = []
+        
+
+        for itemset in itemsets:
+            k = []
+            
+            for item in itemset:
+  
+                k.append(inv_map[item])
+            n_itemsets.append(k)   
+        
+        return n_itemsets
+        
